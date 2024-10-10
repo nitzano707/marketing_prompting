@@ -1,15 +1,14 @@
 import streamlit as st
-from transformers import pipeline, AutoTokenizer, AutoModelForMaskedLM
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
 
-# Initialize the model and tokenizer
 @st.cache_resource
 def load_model():
-    model_name = "Onlplab/alephbert-base"
+    model_name = "MBZUAI/LaMini-Flan-T5-783M"
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForMaskedLM.from_pretrained(model_name)
-    return pipeline('fill-mask', model=model, tokenizer=tokenizer)
+    return pipeline('text2text-generation', model=model, tokenizer=tokenizer)
 
-nlp = load_model()
+generator = load_model()
 
 st.title("מחולל תוכן שיווקי למוסדות חינוך")
 
@@ -19,16 +18,20 @@ unique_features = st.text_area("מאפיינים ייחודיים של המוס�
 target_audience = st.text_input("קהל היעד")
 
 def generate_content(institution_name, institution_type, unique_features, target_audience):
-    prompt = f"{institution_name} הוא {institution_type} מוביל המציע [MASK]. "
-    result = nlp(prompt)
-    first_part = result[0]['sequence']
-    
-    prompt2 = f"{first_part} המוסד מתאפיין ב{unique_features} ומיועד ל[MASK]."
-    result2 = nlp(prompt2)
-    second_part = result2[0]['sequence']
-    
-    final_text = f"{second_part} אנו מזמינים את {target_audience} להצטרף אלינו ולחוות חינוך ברמה הגבוהה ביותר."
-    return final_text
+    prompt = f"""משימה: צור תוכן שיווקי קצר בעברית עבור מוסד חינוכי.
+
+מידע:
+- שם המוסד: {institution_name}
+- סוג המוסד: {institution_type}
+- מאפיינים ייחודיים: {unique_features}
+- קהל היעד: {target_audience}
+
+הנחיות: כתוב פסקה קצרה ומושכת שמתארת את המוסד החינוכי, מדגישה את יתרונותיו הייחודיים ופונה לקהל היעד המתאים. השתמש בשפה עשירה ומשכנעת בעברית.
+
+תוכן שיווקי:"""
+
+    response = generator(prompt, max_length=300, num_return_sequences=1)
+    return response[0]['generated_text']
 
 if st.button("צור תוכן שיווקי"):
     if institution_name and institution_type and unique_features and target_audience:
